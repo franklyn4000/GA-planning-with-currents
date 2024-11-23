@@ -1,16 +1,30 @@
 import random
 import math
+import numpy as np
+
+def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, population_size=2000, generations=60, mutation_rate=0.05, mutation_strength=12,
+                                  path_length=6):
 
 
-def genetic_algorithm_pathfinding(grid, start, goal, population_size=4500, generations=80, mutation_rate=0.32, mutation_strength=2,
-                                  path_length=9):
-    MOVES = [
-        (0, -1),  # Up
-        (0, 1),  # Down
-        (-1, 0),  # Left
-        (1, 0),  # Right
-    ]
-    NUM_MOVES = len(MOVES)
+    def to_vector(dx, dy, magnitude):
+        vector_x = dx * magnitude
+        vector_y = dy * magnitude
+
+        return np.array([vector_x, vector_y])
+
+    def get_unit_vector(x1, y1, x2, y2):
+        dx = x2 - x1
+        dy = y2 - y1
+
+        magnitude = np.sqrt(dx ** 2 + dy ** 2)
+
+        if magnitude != 0:
+            unit_dx = dx / magnitude
+            unit_dy = dy / magnitude
+        else:
+            unit_dx, unit_dy = 0, 0
+
+        return np.array([unit_dx, unit_dy])
 
     def generate_random_path():
         path = []
@@ -23,8 +37,10 @@ def genetic_algorithm_pathfinding(grid, start, goal, population_size=4500, gener
 
     def evaluate_fitness(path):
         d_ug = 0
+        sum_W = 0
         l_traj = 0
         f_utopia = math.sqrt((goal[0] - start[0]) * (goal[0] - start[0]) + (goal[1] - start[1]) * (goal[1] - start[1]))
+        steps = 0
         underground = False
         for i in range(0, len(path) - 1):
             x, y = path[i]
@@ -51,6 +67,9 @@ def genetic_algorithm_pathfinding(grid, start, goal, population_size=4500, gener
                 interval_y = 0
 
             l_traj += distance_P1P2
+
+            last_x, last_y = x, y
+
             for j in range(1, steps_P1P2):
                 pointX = int(math.floor(x + interval_x * j))
                 pointY = int(math.floor(y + interval_y * j))
@@ -61,18 +80,65 @@ def genetic_algorithm_pathfinding(grid, start, goal, population_size=4500, gener
                 if underground:
                     d_ug += step_length_P1P2
 
+                pointX2 = min(69, math.floor(pointX/2))
+                pointY2 = min(69, math.floor(pointY/2))
+                #current velocity vector:
+                vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
+                #unitary vector from p1 to p2
+                ei = get_unit_vector(last_x, last_y, pointX2, pointY2)
+                #nominal speed c
+                c = 2
+
+                #velocity to overcome current
+                vi = c * ei - vc
+
+                W = np.linalg.norm(vi) ** 2
+
+                sum_W += W
+
+                last_x, last_y = pointX, pointY
+                steps += 1
+
             pointX = int(math.floor(next_x))
             pointY = int(math.floor(next_y))
+
 
             underground = pointX < 0 or pointX >= len(grid[0]) or pointY < 0 or pointY >= len(grid) or grid[pointY][
                 pointX] == 1
             if underground:
                 d_ug += step_length_P1P2
+
+           # pointX2 = min(69, math.floor(pointX / 2))
+           # pointY2 = min(69, math.floor(pointY / 2))
+            # current velocity vector:
+          #  vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
+            # unitary vector from p1 to p2
+          #  ei = get_unit_vector(x, y, pointX2, pointY2)
+            # nominal speed c
+          #  c = 2
+
+            # velocity to overcome current
+          #  vi = c * ei - vc
+
+          #  W = np.linalg.norm(-vi) ** 2
+
+           # sum_W += W
+           # steps += 1
+
+            last_x, last_y = pointX, pointY
         # penalty term P
         p = d_ug
 
+        #print(steps/sum_W, steps)
+
+      #  print(l_traj)
+
+        average_energy = steps / sum_W
+
+        energy_utopia =  0.5
+
         if p == 0.0:
-            c = l_traj / f_utopia
+            c = energy_utopia / average_energy * 0.9 + l_traj / f_utopia * 0.1
             return 1 + 1 / (1 + c)
 
         return 0 + 1 / (1 + p)
