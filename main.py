@@ -4,10 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.interpolate import griddata
-from generate_occupancy_grid import generate_grid
-from generate_2D_map import generate_wind_map
-import sys
-
 
 def read_grid(filename):
     occupancy_grid = np.load(filename)

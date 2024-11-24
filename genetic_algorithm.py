@@ -2,10 +2,10 @@ import random
 import math
 import numpy as np
 
-def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, population_size=2000, generations=60, mutation_rate=0.05, mutation_strength=12,
+
+def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, population_size=1600, generations=90,
+                                  mutation_rate=0.15, mutation_strength=10,
                                   path_length=6):
-
-
     def to_vector(dx, dy, magnitude):
         vector_x = dx * magnitude
         vector_y = dy * magnitude
@@ -80,19 +80,22 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
                 if underground:
                     d_ug += step_length_P1P2
 
-                pointX2 = min(69, math.floor(pointX/2))
-                pointY2 = min(69, math.floor(pointY/2))
-                #current velocity vector:
-                vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
-                #unitary vector from p1 to p2
+                pointX2 = min(34, pointX)
+                pointY2 = min(34, pointY)
+                # current velocity vector:
+                vc = np.array([wind_x[pointX2][pointY2], wind_y[pointX2][pointY2]])
+                # vc = [to_vector(], , wind_mag[pointX2][pointY2])
+                # unitary vector from p1 to p2
                 ei = get_unit_vector(last_x, last_y, pointX2, pointY2)
-                #nominal speed c
-                c = 2
+                # nominal speed c
+                c = 1
 
-                #velocity to overcome current
+                # velocity to overcome current
                 vi = c * ei - vc
 
                 W = np.linalg.norm(vi) ** 2
+
+               # print(vc, ei, pointX2, pointY2, W)
 
                 sum_W += W
 
@@ -102,40 +105,41 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
             pointX = int(math.floor(next_x))
             pointY = int(math.floor(next_y))
 
-
             underground = pointX < 0 or pointX >= len(grid[0]) or pointY < 0 or pointY >= len(grid) or grid[pointY][
                 pointX] == 1
             if underground:
                 d_ug += step_length_P1P2
 
-           # pointX2 = min(69, math.floor(pointX / 2))
-           # pointY2 = min(69, math.floor(pointY / 2))
+            # pointX2 = min(69, math.floor(pointX / 2))
+            # pointY2 = min(69, math.floor(pointY / 2))
             # current velocity vector:
-          #  vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
+            #  vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
             # unitary vector from p1 to p2
-          #  ei = get_unit_vector(x, y, pointX2, pointY2)
+            #  ei = get_unit_vector(x, y, pointX2, pointY2)
             # nominal speed c
-          #  c = 2
+            #  c = 2
 
             # velocity to overcome current
-          #  vi = c * ei - vc
+            #  vi = c * ei - vc
 
-          #  W = np.linalg.norm(-vi) ** 2
+            #  W = np.linalg.norm(-vi) ** 2
 
-           # sum_W += W
-           # steps += 1
+            # sum_W += W
+            # steps += 1
 
             last_x, last_y = pointX, pointY
         # penalty term P
         p = d_ug
 
-        #print(steps/sum_W, steps)
+        # print(steps/sum_W, steps)
 
-      #  print(l_traj)
+        #  print(l_traj)
 
         average_energy = steps / sum_W
 
-        energy_utopia =  0.5
+        #print(average_energy)
+
+        energy_utopia = 0.1
 
         if p == 0.0:
             c = energy_utopia / average_energy * 0.9 + l_traj / f_utopia * 0.1
@@ -166,7 +170,8 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
         mutated_path = path[:]
         for i in range(1, path_length - 1):
             if random.random() < mutation_rate:
-                mutated_path[i] = (mutated_path[i][0] + random.randint(-mutation_strength, mutation_strength), mutated_path[i][0] + random.randint(-mutation_strength, mutation_strength))
+                mutated_path[i] = (mutated_path[i][0] + random.randint(-mutation_strength, mutation_strength),
+                                   mutated_path[i][0] + random.randint(-mutation_strength, mutation_strength))
         return mutated_path
 
     population = []
@@ -209,5 +214,5 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
 
     print("best fitness: ", best_fitness)
 
-    #print(population)
+    # print(population)
     return best_path, best_fitnesses
