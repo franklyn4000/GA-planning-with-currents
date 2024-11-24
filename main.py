@@ -4,6 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.interpolate import griddata
+from generate_occupancy_grid import generate_grid
+from generate_2D_map import generate_wind_map
+import sys
+
 
 def read_grid(filename):
     occupancy_grid = np.load(filename)
@@ -15,58 +19,21 @@ def read_config(config_file):
         config = json.load(file)
     start = tuple(config["start"])
     goal = tuple(config["goal"])
-    return start, goal
+    res = config["res"]
+    return start, goal, res
 
 
-def read_wind(filename):
-    df = pd.read_csv(filename)
 
-    # Extract the points (origins of the vectors)
-    x = df["Points:0"].values
-    y = df["Points:1"].values
-    z = df["Points:2"].values
-
-    # Extract the velocity components
-    values_u = df["U:0"].values
-    values_v = df["U:1"].values
-    values_w = df["U:2"].values  # May ignore this for a horizontal slice
-
-    # Define the grid bounds based on the data
-    x_min, x_max = np.min(x), np.max(x)
-    y_min, y_max = np.min(y), np.max(y)
-
-    # Choose the z-value for the horizontal slice
-    slice_z = 5  # Replace with your desired z-value
-
-    # Create a 2D grid for interpolation
-    grid_resolution = 70j  # Adjust as needed for resolution
-    x_grid, y_grid = np.mgrid[x_min:x_max:grid_resolution, y_min:y_max:grid_resolution]
-
-    # Interpolate the wind components onto the grid at slice_z
-    points = np.vstack([x, y, z]).T
-    grid_points = np.vstack([x_grid.ravel(), y_grid.ravel(), slice_z * np.ones_like(x_grid.ravel())]).T
-
-    # Use griddata to interpolate u and v onto the grid
-    u_grid = griddata(points, values_u, grid_points, method='nearest').reshape(x_grid.shape)
-    v_grid = griddata(points, values_v, grid_points, method='nearest').reshape(x_grid.shape)
-
-    # Compute the magnitude of the wind vectors
-    magnitude_grid = np.sqrt(u_grid ** 2 + v_grid ** 2)
-
-    # Normalize the magnitude
-    magnitude_normalized = magnitude_grid / np.max(magnitude_grid)
-
-    return u_grid, v_grid, magnitude_normalized
 
 
 def main():
-    import sys
+    slice = 5
 
-    start, goal = read_config("./config.json")
-    grid = read_grid("occupancy_grid.npy")
-    wind_x, wind_y, wind_mag = read_wind("data/wind_maps0.csv")
+    start, goal, res = read_config("./config.json")
+    grid = generate_grid(res, slice)
+    x_grid, y_grid, u_grid, v_grid, mag_grid = generate_wind_map("data/wind_maps0.csv", res, slice)
 
-    path, fit_evo = genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal)
+    path, fit_evo = genetic_algorithm_pathfinding(grid, u_grid, v_grid, mag_grid, start, goal)
 
    # print(path)
     plt.plot(fit_evo, marker='o', linestyle='-', color='b')
