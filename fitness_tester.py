@@ -4,9 +4,10 @@ import numpy as np
 import copy
 
 
-def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, population_size, generations,
-                                  initial_mutation_rate, initial_mutation_strength,
-                                  path_length, init_pop=None):
+
+def test(grid, wind_x, wind_y, wind_mag, start, goal, population_size=450, generations=22,
+                                  mutation_rate=0.1, mutation_strength=6,
+                                  path_length=8):
     def travel_time(ei, vc, c, L):
 
         # Compute net velocity over ground
@@ -27,10 +28,13 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
         return t
 
     def max_speed(ei, vc, E):
+
         ei_dot_vc = np.dot(ei, vc)
         vc_norm_sq = np.dot(vc, vc)
 
         discriminant = E + ei_dot_vc ** 2 - vc_norm_sq
+
+        # print(discriminant)
 
         if discriminant < 0:
             return -1
@@ -75,7 +79,7 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
         l_traj = 0
         f_utopia = math.sqrt((goal[0] - start[0]) * (goal[0] - start[0]) + (goal[1] - start[1]) * (goal[1] - start[1]))
         steps = 0
-
+        underground = False
         for i in range(0, len(path) - 1):
             x, y = path[i]
             next_x, next_y = path[i + 1]
@@ -102,6 +106,8 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
 
             l_traj += distance_P1P2
 
+            last_x, last_y = x, y
+
             for j in range(1, steps_P1P2):
                 pointX = int(math.floor(x + interval_x * j))
                 pointY = int(math.floor(y + interval_y * j))
@@ -115,16 +121,36 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
 
                 pointX2 = max(0, min(len(grid[0]) - 1, pointX))
                 pointY2 = max(0, min(len(grid) - 1, pointY))
-
+                # current velocity vector:
+                # vc = np.array([wind_x[pointX2][pointY2], wind_y[pointX2][pointY2]])
                 vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
+                # unitary vector from p1 to p2
                 ei = get_unit_vector(x, y, next_x, next_y)
+                # nominal speed c
+                c = 1
 
+                # velocity to overcome current
+                vi = c * ei - vc  #
+
+                W = np.linalg.norm(vi) ** 2
+                # print(vc, ei, pointX2, pointY2)
                 c = max_speed(ei, vc, 2)
 
                 t = travel_time(ei, vc, c, step_length_P1P2)
 
+                # if c < 0:
+                #    d_ug += step_length_P1P2
+
+                # W
+
+                # print(c)
+                # print(vc, ei, pointX2, pointY2, W)
+
                 sum_W += t
 
+                # print(vc, ei, pointX2, pointY2, t)
+
+                last_x, last_y = pointX, pointY
                 steps += 1
 
             pointX = int(math.floor(next_x))
@@ -135,11 +161,49 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
             if underground:
                 d_ug += step_length_P1P2
 
+            # pointX2 = min(69, math.floor(pointX / 2))
+            # pointY2 = min(69, math.floor(pointY / 2))
+            # current velocity vector:
+            #  vc = to_vector(wind_x[pointX2][pointY2], wind_y[pointX2][pointY2], wind_mag[pointX2][pointY2])
+            # unitary vector from p1 to p2
+            #  ei = get_unit_vector(x, y, pointX2, pointY2)
+            # nominal speed c
+            #  c = 2
+
+            # velocity to overcome current
+            #  vi = c * ei - vc
+
+            #  W = np.linalg.norm(-vi) ** 2
+
+            # sum_W += W
+            # steps += 1
+
+            last_x, last_y = pointX, pointY
+        # penalty term P
         p = d_ug
 
+        # print(steps/sum_W, steps)
+
+        #  print(l_traj)
+
+        #  average_energy = steps / sum_W
+
+        # energy_utopia = 5
+
+        # print(energy_utopia / (energy_utopia - average_energy))
+
+        # speed = energy_utopia / (energy_utopia - average_energy)
+
+        #  time = l_traj / speed
+
+        # print(1 / time)
+
         time = sum_W
+        # print((f_utopia * 5), time, (f_utopia * 5) / time)
+
 
         if p == 0.0:
+            # c = speed * 0.9 + l_traj / f_utopia * 0.1
             c = time / (f_utopia * 0.3)
             return 1 + 1 / (1 + c)
 
@@ -148,7 +212,7 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
     def selection(pop, fit):
         # Implement tournament selection
         selected = []
-        k = 3
+        k = 3  # Tournament size
         for _ in range(len(pop)):
             participants = random.sample(list(zip(pop, fit)), k)
             winner = max(participants, key=lambda x: x[1])
@@ -158,102 +222,29 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
     def crossover(parent1, parent2):
         crossover_point = random.randint(1, path_length - 1)
 
+        # Single-point crossover
         c1 = parent1[:crossover_point] + parent2[crossover_point:]
         c2 = parent2[:crossover_point] + parent1[crossover_point:]
 
         return c1, c2
 
-    def mutate(path, rate, strength):
-        mutated_path = copy.deepcopy(path)
-        for i in range(1, path_length + 1):
-            if random.random() < rate:
-                mutated_path[i][0] += random.gauss(0, strength)
-                mutated_path[i][1] += random.gauss(0, strength)
+    def mutate(path):
+        mutated_path = path[:]
+        for i in range(1, path_length - 1):
+            if random.random() < mutation_rate:
+                #print(mutated_path[i][0], random.randint(-mutation_strength, mutation_strength))
+                mutated_path[i][0] = mutated_path[i][0] + random.randint(-mutation_strength, mutation_strength)
+            if random.random() < mutation_rate:
+                mutated_path[i][1] = mutated_path[i][1] + random.randint(-mutation_strength, mutation_strength)
         return mutated_path
 
+    population = [generate_random_path() for _ in range(population_size)]
 
-    if init_pop is not None:
-        population = init_pop
-    else:
-        population = [generate_random_path() for _ in range(population_size)]
-
-    best_path = None
-    best_fitnesses = []
-    elitism_rate = 0.05
-    elite_size = max(1, int(elitism_rate * population_size))
-
-    mutation_rate = initial_mutation_rate
-    max_mutation_rate = 0.1
-    stagnation_threshold = 5
-    stagnation_counter = 0
-
-    mutation_strength = initial_mutation_strength
-    max_mutation_strength = grid.shape[0] / 4
-    strength_stagnation_counter = 0
-
-    best_fitness = -1
-
-    for generation in range(generations):
-        if init_pop is not None:
-            print(f"Generation: {generation} mutation rate: {mutation_rate} mutation strength: {mutation_strength}")
-        fitnesses = [evaluate_fitness(path) for path in population]
-        current_best_fitness = max(fitnesses)
-        best_index = fitnesses.index(current_best_fitness)
-        best_path = population[best_index]
-        best_fitnesses.append(current_best_fitness)
-
-        if best_fitness is None or current_best_fitness > best_fitness:
-            # Improvement found
-            best_fitness = current_best_fitness
-            stagnation_counter = 0
-            strength_stagnation_counter = 0
-            mutation_rate = initial_mutation_rate  # Reset mutation rate
-            mutation_strength = initial_mutation_strength
-        else:
-            # No improvement
-            stagnation_counter += 1
-            if stagnation_counter >= stagnation_threshold:
-                # Increase mutation rate, capped at max_mutation_rate
-                mutation_rate = min(mutation_rate * 1.5, max_mutation_rate)
-                stagnation_counter = 0  # Reset counter after adjusting mutation rate
-                if mutation_rate == max_mutation_rate:
-                    strength_stagnation_counter += 1
-                   # mutation_strength = min(mutation_strength * 1.5, max_mutation_strength)
-                    if strength_stagnation_counter > 10:
-                        break
+    path = [(2, 2), [7.944502423124308, 17.51801373860697], [10.138437950770838, 30.50955444162393], [10.70064531748421, 30.704623201332378], [23.363090856960362, 30.258976181022977], [26.784363936677753, 29.142703630266592], [37.11338897135945, 29.351846795139203], [50, 30], [64, 41], (68, 40)]
 
 
-        avg_fitness = sum(fitnesses) / len(fitnesses)
-       # print(f"Avg Fitness: {avg_fitness}, Max Fitness: {best_fitness}")
+    fitness = evaluate_fitness(path)
+    best_path = path
 
-        # Sort population by fitness
-        sorted_population = [x for _, x in sorted(zip(fitnesses, population), key=lambda pair: pair[0], reverse=True)]
-        # Deep copy elites
-        new_population = [copy.deepcopy(individual) for individual in sorted_population[:elite_size]]
-
-        # Prepare for selection
-        remaining_population = sorted_population[elite_size:]
-        remaining_fitnesses = sorted(fitnesses, reverse=True)[elite_size:]
-
-        # Ensure there are individuals to select from
-        if remaining_population:
-            selected = selection(remaining_population, remaining_fitnesses)
-        else:
-            selected = []
-
-        # Generate new offspring
-        while len(new_population) < population_size:
-            parent1 = random.choice(selected)
-            parent2 = random.choice(selected)
-            child1, child2 = crossover(parent1, parent2)
-            child1 = mutate(child1, mutation_rate, mutation_strength)
-            child2 = mutate(child2, mutation_rate, mutation_strength)
-            new_population.append(child1)
-            if len(new_population) < population_size:
-                new_population.append(child2)
-
-        population = new_population
-
-    print(best_path)
-    print("Best fitness:", best_fitness)
-    return best_path, best_fitnesses
+    print("Best fitness:", fitness)
+    return best_path, [fitness]
