@@ -1,3 +1,4 @@
 .idea
 occupancy_grid.npy
 __pycache__/
+data_out
