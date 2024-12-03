@@ -7,22 +7,16 @@ import copy
 def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, population_size, generations,
                                   initial_mutation_rate, initial_mutation_strength,
                                   path_length, init_pop=None):
-    def travel_time(ei, vc, c, L):
+    def travel_time(c, L):
 
-        # Compute net velocity over ground
-        v_net = c * ei + vc
-
-        # Compute the speed along the path pri
-        v_path = np.dot(v_net, ei)
-
-        if np.linalg.norm(ei) == 0:
-            return 0
-
-        if v_path <= 0:
+        if c <= 0:
             return 999
 
+        if L == 0:
+            return 0
+
         # Calculate travel time
-        t = L / v_path
+        t = L / c
 
         return t
 
@@ -30,13 +24,17 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
         ei_dot_vc = np.dot(ei, vc)
         vc_norm_sq = np.dot(vc, vc)
 
-        discriminant = E + ei_dot_vc ** 2 - vc_norm_sq
+        a = 1
+        b = -2 * ei_dot_vc
+        c_coef = vc_norm_sq - E
+
+        discriminant = b ** 2 - 4 * a * c_coef
 
         if discriminant < 0:
             return -1
 
         sqrt_discriminant = np.sqrt(discriminant)
-        c = ei_dot_vc + sqrt_discriminant
+        c = (-b + sqrt_discriminant) / (2 * a)
 
         return c
 
@@ -121,7 +119,7 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
 
                 c = max_speed(ei, vc, 2)
 
-                t = travel_time(ei, vc, c, step_length_P1P2)
+                t = travel_time(c, step_length_P1P2)
 
                 sum_W += t
 
@@ -140,7 +138,7 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
         time = sum_W
 
         if p == 0.0:
-            c = time / (f_utopia * 0.3)
+            c = time / (f_utopia * 0.25)
             return 1 + 1 / (1 + c)
 
         return 0 + 1 / (1 + p)
@@ -167,10 +165,9 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
         mutated_path = copy.deepcopy(path)
         for i in range(1, path_length + 1):
             if random.random() < rate:
-                mutated_path[i][0] += random.gauss(0, strength)
-                mutated_path[i][1] += random.gauss(0, strength)
+                mutated_path[i][0] += random.gauss(0, mutation_strength)
+                mutated_path[i][1] += random.gauss(0, mutation_strength)
         return mutated_path
-
 
     if init_pop is not None:
         population = init_pop
@@ -179,19 +176,20 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
 
     best_path = None
     best_fitnesses = []
-    elitism_rate = 0.05
+    elitism_rate = 0.1
     elite_size = max(1, int(elitism_rate * population_size))
 
     mutation_rate = initial_mutation_rate
     max_mutation_rate = 0.1
-    stagnation_threshold = 5
+    stagnation_threshold = 7
     stagnation_counter = 0
 
     mutation_strength = initial_mutation_strength
-    max_mutation_strength = grid.shape[0] / 4
     strength_stagnation_counter = 0
 
     best_fitness = -1
+    best_fitness_run = []
+    average_fitness_run = []
 
     for generation in range(generations):
         if init_pop is not None:
@@ -207,35 +205,32 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
             best_fitness = current_best_fitness
             stagnation_counter = 0
             strength_stagnation_counter = 0
-            mutation_rate = initial_mutation_rate  # Reset mutation rate
+            mutation_rate = initial_mutation_rate
             mutation_strength = initial_mutation_strength
         else:
             # No improvement
             stagnation_counter += 1
             if stagnation_counter >= stagnation_threshold:
-                # Increase mutation rate, capped at max_mutation_rate
                 mutation_rate = min(mutation_rate * 1.5, max_mutation_rate)
                 stagnation_counter = 0  # Reset counter after adjusting mutation rate
                 if mutation_rate == max_mutation_rate:
                     strength_stagnation_counter += 1
-                   # mutation_strength = min(mutation_strength * 1.5, max_mutation_strength)
                     if strength_stagnation_counter > 10:
                         break
 
-
         avg_fitness = sum(fitnesses) / len(fitnesses)
-       # print(f"Avg Fitness: {avg_fitness}, Max Fitness: {best_fitness}")
+
+        average_fitness_run.append(avg_fitness)
+        best_fitness_run.append(current_best_fitness)
 
         # Sort population by fitness
         sorted_population = [x for _, x in sorted(zip(fitnesses, population), key=lambda pair: pair[0], reverse=True)]
         # Deep copy elites
         new_population = [copy.deepcopy(individual) for individual in sorted_population[:elite_size]]
 
-        # Prepare for selection
         remaining_population = sorted_population[elite_size:]
         remaining_fitnesses = sorted(fitnesses, reverse=True)[elite_size:]
 
-        # Ensure there are individuals to select from
         if remaining_population:
             selected = selection(remaining_population, remaining_fitnesses)
         else:
@@ -254,6 +249,5 @@ def genetic_algorithm_pathfinding(grid, wind_x, wind_y, wind_mag, start, goal, p
 
         population = new_population
 
-    print(best_path)
     print("Best fitness:", best_fitness)
-    return best_path, best_fitnesses
+    return best_path, best_fitnesses, best_fitness_run, average_fitness_run

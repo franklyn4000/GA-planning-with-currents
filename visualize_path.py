@@ -16,6 +16,8 @@ def visualize(index, traveled_path, load_path=False):
     if load_path:
         path = np.loadtxt(os.path.join(file_path, 'path.csv'), delimiter=',')
         fit_evo = np.loadtxt(os.path.join(file_path, 'fit_evo.csv'), delimiter=',')
+        best_run = np.loadtxt(os.path.join(file_path, 'best_run.csv'), delimiter=',')
+        avg_run = np.loadtxt(os.path.join(file_path, 'avg_run.csv'), delimiter=',')
 
     res_final = np.loadtxt(os.path.join(file_path, 'res.csv'), delimiter=',')
     grid_final = np.loadtxt(os.path.join(file_path, 'grid.csv'), delimiter=',')
@@ -34,10 +36,18 @@ def visualize(index, traveled_path, load_path=False):
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     if fit_evo is not None:
-        plt.plot(fit_evo, marker='o', linestyle='-', color='b')
-        plt.title('Fitness Evolution')
-        plt.xlabel('Iteration')
-        plt.ylabel('Fitness')
+        fig, ax = plt.subplots(figsize=(14, 10))
+        ax.plot(fit_evo, linestyle='-', color='g', linewidth=6)
+        #plt.plot(best_run, linestyle='-', color='b')
+        ax.plot(avg_run, linestyle='-', color='y', linewidth=6)
+        ax.set_title('Fitness Evolution', fontsize=24)
+        ax.set_xlabel('Iteration', fontsize=24)
+        ax.set_ylabel('Fitness', fontsize=24)
+        ax.tick_params(axis='both', which='major', labelsize=18)
+        legend = ax.legend(handles=[
+            plt.Line2D([], [], color='g', lw=4, label='Max. Fitness in Gen.'),
+            plt.Line2D([], [], color='y', lw=4, label='Avg. Fitness in Gen.'),
+        ], loc='lower left', fontsize=23)
         plt.show()
 
     fig, ax = plt.subplots(figsize=(14, 14))

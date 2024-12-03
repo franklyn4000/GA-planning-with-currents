@@ -1,5 +1,17 @@
 {
     "start": [2, 2],
-    "goal": [28, 32],
-    "res": 35
+    "goal": [27, 32],
+    "final_scale": 4,
+    "slice": 5,
+    "desired_population": 50,
+    "init_res": 35,
+    "init_pop": 50,
+    "init_gen": 50,
+    "init_mut_rate": 0.03,
+    "init_mut_strength": 10,
+    "final_scale": 4,
+    "final_gen": 1900,
+    "final_mut_rate": 0.004,
+    "final_mut_strength": 1,
+    "final_pop_factor": 1
 }
